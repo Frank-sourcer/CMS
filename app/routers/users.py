@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import User
 from ..schemas import UserCreate, UserResponse
-from ..security import hash_password
+from ..security import hash_password, get_current_user
 
 
 router = APIRouter(
@@ -40,12 +40,20 @@ def create_user(
 
     return new_user
 
+
 @router.get("/", response_model=list[UserResponse])
-def get_users(db: Session = Depends(get_db)):
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     return db.query(User).all()
 
+
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(User.id == user_id).first()
 
     if user is None:

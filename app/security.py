@@ -1,6 +1,53 @@
 import hashlib
 import secrets
+import os
+from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
+from jose import jwt
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "development-secret-key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/login"
+)
+
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update({
+        "exp": expire
+    })
+
+    return jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+
+def verify_access_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        return payload
+
+    except Exception:
+        return None
 
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
@@ -33,3 +80,16 @@ def verify_password(password: str, stored_hash: str) -> bool:
         password_hash.hex(),
         hash_hex
     )
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme)
+):
+    payload = verify_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    return payload
