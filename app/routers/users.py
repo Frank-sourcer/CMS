@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import User
 from ..schemas import UserCreate, UserResponse
-from ..security import hash_password, get_current_user
+from ..security import hash_password, require_role
 
 
 router = APIRouter(
@@ -44,9 +44,21 @@ def create_user(
 @router.get("/", response_model=list[UserResponse])
 def get_users(
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_role("admin"))
 ):
     return db.query(User).all()
+
+
+@router.get("/management")
+def management_area(
+    current_user: dict = Depends(
+        require_role("admin", "dispatcher")
+    )
+):
+    return {
+        "message": "Welcome to the management area",
+        "role": current_user.get("role")
+    }
 
 
 @router.get("/{user_id}", response_model=UserResponse)
