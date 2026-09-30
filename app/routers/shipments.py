@@ -3,8 +3,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import Shipment
-from ..shipment_schemas import ShipmentCreate, ShipmentResponse, ShipmentStatusUpdate, ShipmentStatus, SHIPMENT_TRANSITIONS
+from ..models import Shipment, Customer
+from ..shipment_schemas import (
+    ShipmentCreate,
+    ShipmentResponse,
+    ShipmentStatusUpdate,
+    ShipmentStatus,
+    SHIPMENT_TRANSITIONS
+)
 from ..security import get_current_user
 
 
@@ -29,8 +35,19 @@ def create_shipment(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
+    customer = db.query(Customer).filter(
+        Customer.id == shipment.customer_id
+    ).first()
+
+    if customer is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+
     new_shipment = Shipment(
         tracking_number=shipment.tracking_number,
+        customer_id=shipment.customer_id,
         sender_name=shipment.sender_name,
         recipient_name=shipment.recipient_name,
         pickup_location=shipment.pickup_location,
@@ -79,6 +96,7 @@ def get_shipment(
         )
 
     return shipment
+
 
 @router.patch("/{shipment_id}/status", response_model=ShipmentResponse)
 def update_shipment_status(

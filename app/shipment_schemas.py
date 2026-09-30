@@ -20,6 +20,7 @@ class ShipmentStatus(str, Enum):
 
 class ShipmentCreate(BaseModel):
     tracking_number: str
+    customer_id: int
     sender_name: str
     recipient_name: str
     pickup_location: str
@@ -29,6 +30,7 @@ class ShipmentCreate(BaseModel):
 class ShipmentResponse(BaseModel):
     id: int
     tracking_number: str
+    customer_id: int | None
     sender_name: str
     recipient_name: str
     pickup_location: str
