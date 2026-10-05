@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Customer
-from ..customer_schemas import CustomerCreate, CustomerResponse
+from ..customer_schemas import CustomerCreate,CustomerUpdate, CustomerResponse
 from ..shipment_schemas import ShipmentResponse
 from ..security import get_current_user
 

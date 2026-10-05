@@ -107,3 +107,14 @@ def require_role(*allowed_roles):
         return current_user
 
     return role_checker
+
+
+def current_user_id(current_user: dict) -> int:
+    """Extract numeric user ID from the JWT payload."""
+    try:
+        return int(current_user.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=401,
+            detail="Malformed token payload"
+        )
