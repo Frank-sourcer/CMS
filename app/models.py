@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -53,11 +53,24 @@ class Shipment(Base):
     id = Column(Integer, primary_key=True, index=True)
     tracking_number = Column(String, unique=True, index=True, nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    rider_id = Column(Integer, ForeignKey("riders.id"), nullable=True)
 
     sender_name = Column(String, nullable=False)
+    sender_phone = Column(String, nullable=True)
     recipient_name = Column(String, nullable=False)
-    pickup_location = Column(String, nullable=False)
-    delivery_location = Column(String, nullable=False)
+    recipient_phone = Column(String, nullable=True)
+    pickup_address = Column(String, nullable=False)
+    delivery_address = Column(String, nullable=False)
+
+    package_description = Column(String, nullable=True)
+    weight = Column(Float, nullable=True)
+    delivery_fee = Column(Float, nullable=True)
+    cod_amount = Column(Float, nullable=True)
+
     status = Column(String, default="created")
 
+    assigned_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
     customer = relationship("Customer", back_populates="shipments")
+    rider = relationship("Rider")

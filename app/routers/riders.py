@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Rider
+from ..models import User, Rider, Shipment
 from ..rider_schemas import (
     RiderCreate,
     RiderUpdate,
@@ -156,3 +156,37 @@ def update_rider_status(
     db.commit()
     db.refresh(rider)
     return rider_to_response(rider)
+
+
+@router.get("/{rider_id}/deliveries")
+def get_rider_deliveries(
+    rider_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    rider = db.query(Rider).filter(Rider.id == rider_id).first()
+    if rider is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Rider not found",
+        )
+
+    shipments = (
+        db.query(Shipment)
+        .filter(Shipment.rider_id == rider_id)
+        .order_by(Shipment.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": s.id,
+            "tracking_number": s.tracking_number,
+            "status": s.status,
+            "recipient_name": s.recipient_name,
+            "delivery_address": s.delivery_address,
+            "assigned_at": s.assigned_at,
+            "created_at": s.created_at,
+        }
+        for s in shipments
+    ]
