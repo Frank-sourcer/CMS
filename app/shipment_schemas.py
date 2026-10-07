@@ -79,7 +79,7 @@ class ShipmentResponse(BaseModel):
     status: str
 
     rider_id: int | None
-    rider_name: str | None        # flattened from rider.user.name
+    rider_name: str | None
     assigned_at: datetime | None
     created_at: datetime
 
@@ -104,12 +104,14 @@ SHIPMENT_TRANSITIONS = {
     ],
     ShipmentStatus.AT_HUB: [
         ShipmentStatus.IN_TRANSIT,
+        ShipmentStatus.OUT_FOR_DELIVERY,
         ShipmentStatus.CANCELLED,
         ShipmentStatus.LOST,
         ShipmentStatus.DAMAGED,
     ],
     ShipmentStatus.IN_TRANSIT: [
         ShipmentStatus.OUT_FOR_DELIVERY,
+        ShipmentStatus.AT_HUB,
         ShipmentStatus.LOST,
         ShipmentStatus.DAMAGED,
     ],

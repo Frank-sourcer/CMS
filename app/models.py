@@ -94,3 +94,39 @@ class TrackingEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     shipment = relationship("Shipment")
+
+
+
+
+class Hub(Base):
+    __tablename__ = "hubs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    code = Column(String, unique=True, nullable=False)   # e.g. "NRB"
+    location = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ShipmentMovement(Base):
+    __tablename__ = "shipment_movements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipment_id = Column(
+        Integer,
+        ForeignKey("shipments.id"),
+        nullable=False,
+        index=True,
+    )
+    hub_id = Column(
+        Integer,
+        ForeignKey("hubs.id"),
+        nullable=False,
+        index=True,
+    )
+    direction = Column(String, nullable=False)   # "in" | "out"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    shipment = relationship("Shipment")
+    hub = relationship("Hub")

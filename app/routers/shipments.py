@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Shipment, Customer, Rider, TrackingEvent
+from ..models import Shipment, Customer, Rider, TrackingEvent, Hub, ShipmentMovement
 from ..shipment_schemas import (
     ShipmentCreate,
     ShipmentUpdate,
@@ -16,6 +16,7 @@ from ..shipment_schemas import (
     SHIPMENT_TRANSITIONS,
 )
 from ..tracking_schemas import TrackingEventResponse
+from ..hub_schemas import ShipmentMovementResponse
 from ..security import get_current_user, require_role
 
 
@@ -120,7 +121,7 @@ def create_shipment(
     db.add(new_shipment)
 
     try:
-        db.flush()   # assign new_shipment.id without committing
+        db.flush()
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -191,6 +192,46 @@ def get_shipment_tracking(
     return events
 
 
+# ---------- GET HUB MOVEMENTS ----------
+@router.get(
+    "/{shipment_id}/movements",
+    response_model=list[ShipmentMovementResponse],
+)
+def get_shipment_movements(
+    shipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    movements = (
+        db.query(ShipmentMovement)
+        .filter(ShipmentMovement.shipment_id == shipment_id)
+        .order_by(ShipmentMovement.created_at.desc(), ShipmentMovement.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": m.id,
+            "shipment_id": m.shipment_id,
+            "hub_id": m.hub_id,
+            "hub_name": m.hub.name,
+            "direction": m.direction,
+            "created_at": m.created_at,
+        }
+        for m in movements
+    ]
+
+
 # ---------- PATCH details (not status) ----------
 @router.patch("/{shipment_id}", response_model=ShipmentResponse)
 def update_shipment(
@@ -235,10 +276,18 @@ def assign_rider(
             detail="Shipment not found",
         )
 
-    if shipment.status != ShipmentStatus.CREATED.value:
+    assignable_statuses = {
+        ShipmentStatus.CREATED.value,
+        ShipmentStatus.AT_HUB.value,
+    }
+
+    if shipment.status not in assignable_statuses:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot assign rider to shipment in status '{shipment.status}'",
+            detail=(
+                f"Cannot assign rider to shipment in status "
+                f"'{shipment.status}' (must be one of {sorted(assignable_statuses)})"
+            ),
         )
 
     rider = db.query(Rider).filter(Rider.id == payload.rider_id).first()
@@ -257,16 +306,172 @@ def assign_rider(
 
     shipment.rider_id = rider.id
     shipment.assigned_at = datetime.utcnow()
-    shipment.status = ShipmentStatus.PICKUP_ASSIGNED.value
+
+    # Assigning from `created` means the rider has to go collect from
+    # the sender: flip to pickup_assigned. Assigning from `at_hub` means
+    # the rider is collecting from a hub — status stays at_hub, and the
+    # next transition is at_hub → out_for_delivery.
+    if shipment.status == ShipmentStatus.CREATED.value:
+        shipment.status = ShipmentStatus.PICKUP_ASSIGNED.value
+        event_status = ShipmentStatus.PICKUP_ASSIGNED.value
+    else:
+        event_status = ShipmentStatus.AT_HUB.value
 
     rider.availability_status = "busy"
 
     log_event(
         db,
         shipment,
-        status_value=ShipmentStatus.PICKUP_ASSIGNED.value,
+        status_value=event_status,
         location=None,
         description=f"Rider assigned: {rider.user.name}",
+    )
+
+    db.commit()
+    db.refresh(shipment)
+    return shipment_to_response(shipment)
+
+
+# ---------- ARRIVE AT HUB ----------
+@router.post("/{shipment_id}/arrive/{hub_id}", response_model=ShipmentResponse)
+def arrive_at_hub(
+    shipment_id: int,
+    hub_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("admin", "dispatcher", "hub_staff")),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    hub = db.query(Hub).filter(Hub.id == hub_id).first()
+
+    if hub is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hub not found",
+        )
+
+    if not hub.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Hub '{hub.name}' is not active",
+        )
+
+    arrival_allowed_from = {
+        ShipmentStatus.PICKED_UP.value,
+        ShipmentStatus.IN_TRANSIT.value,
+    }
+
+    if shipment.status not in arrival_allowed_from:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot arrive at hub from status '{shipment.status}' "
+                f"(must be one of {sorted(arrival_allowed_from)})"
+            ),
+        )
+
+    # Free the current rider — this leg is done
+    if shipment.rider is not None:
+        shipment.rider.availability_status = "available"
+        shipment.rider_id = None
+
+    shipment.status = ShipmentStatus.AT_HUB.value
+
+    movement = ShipmentMovement(
+        shipment_id=shipment.id,
+        hub_id=hub.id,
+        direction="in",
+    )
+    db.add(movement)
+
+    log_event(
+        db,
+        shipment,
+        status_value=ShipmentStatus.AT_HUB.value,
+        location=hub.name,
+        description=f"Arrived at {hub.name}",
+    )
+
+    db.commit()
+    db.refresh(shipment)
+    return shipment_to_response(shipment)
+
+
+# ---------- DEPART FROM HUB ----------
+@router.post("/{shipment_id}/depart/{hub_id}", response_model=ShipmentResponse)
+def depart_from_hub(
+    shipment_id: int,
+    hub_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("admin", "dispatcher", "hub_staff")),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    hub = db.query(Hub).filter(Hub.id == hub_id).first()
+
+    if hub is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hub not found",
+        )
+
+    if shipment.status != ShipmentStatus.AT_HUB.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot depart from hub in status '{shipment.status}' "
+                f"(must be 'at_hub')"
+            ),
+        )
+
+    latest_in = (
+        db.query(ShipmentMovement)
+        .filter(
+            ShipmentMovement.shipment_id == shipment.id,
+            ShipmentMovement.hub_id == hub.id,
+            ShipmentMovement.direction == "in",
+        )
+        .order_by(ShipmentMovement.created_at.desc(), ShipmentMovement.id.desc())
+        .first()
+    )
+
+    if latest_in is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Shipment never arrived at {hub.name}",
+        )
+
+    shipment.status = ShipmentStatus.IN_TRANSIT.value
+
+    movement = ShipmentMovement(
+        shipment_id=shipment.id,
+        hub_id=hub.id,
+        direction="out",
+    )
+    db.add(movement)
+
+    log_event(
+        db,
+        shipment,
+        status_value=ShipmentStatus.IN_TRANSIT.value,
+        location=hub.name,
+        description=f"Departed {hub.name}",
     )
 
     db.commit()
@@ -304,7 +509,6 @@ def update_shipment_status(
 
     shipment.status = new_status.value
 
-    # When delivered, free up the assigned rider
     if new_status == ShipmentStatus.DELIVERED and shipment.rider is not None:
         shipment.rider.availability_status = "available"
 
