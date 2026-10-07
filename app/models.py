@@ -74,3 +74,23 @@ class Shipment(Base):
 
     customer = relationship("Customer", back_populates="shipments")
     rider = relationship("Rider")
+
+
+
+
+class TrackingEvent(Base):
+    __tablename__ = "tracking_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipment_id = Column(
+        Integer,
+        ForeignKey("shipments.id"),
+        nullable=False,
+        index=True,
+    )
+    status = Column(String, nullable=False)
+    location = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    shipment = relationship("Shipment")

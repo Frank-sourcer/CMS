@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Shipment, Customer, Rider
+from ..models import Shipment, Customer, Rider, TrackingEvent
 from ..shipment_schemas import (
     ShipmentCreate,
     ShipmentUpdate,
@@ -15,6 +15,7 @@ from ..shipment_schemas import (
     ShipmentStatus,
     SHIPMENT_TRANSITIONS,
 )
+from ..tracking_schemas import TrackingEventResponse
 from ..security import get_current_user, require_role
 
 
@@ -49,6 +50,24 @@ def shipment_to_response(shipment: Shipment) -> dict:
         "assigned_at": shipment.assigned_at,
         "created_at": shipment.created_at,
     }
+
+
+def log_event(
+    db: Session,
+    shipment: Shipment,
+    status_value: str,
+    location: str | None = None,
+    description: str | None = None,
+) -> TrackingEvent:
+    """Append a tracking event. Caller must commit."""
+    event = TrackingEvent(
+        shipment_id=shipment.id,
+        status=status_value,
+        location=location,
+        description=description,
+    )
+    db.add(event)
+    return event
 
 
 # ---------- LIST ----------
@@ -101,14 +120,24 @@ def create_shipment(
     db.add(new_shipment)
 
     try:
-        db.commit()
-        db.refresh(new_shipment)
+        db.flush()   # assign new_shipment.id without committing
     except IntegrityError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Tracking number already exists",
         )
+
+    log_event(
+        db,
+        new_shipment,
+        status_value="created",
+        location=payload.pickup_address,
+        description="Shipment created",
+    )
+
+    db.commit()
+    db.refresh(new_shipment)
 
     return shipment_to_response(new_shipment)
 
@@ -131,6 +160,35 @@ def get_shipment(
         )
 
     return shipment_to_response(shipment)
+
+
+# ---------- GET TRACKING TIMELINE ----------
+@router.get(
+    "/{shipment_id}/tracking",
+    response_model=list[TrackingEventResponse],
+)
+def get_shipment_tracking(
+    shipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    events = (
+        db.query(TrackingEvent)
+        .filter(TrackingEvent.shipment_id == shipment_id)
+        .order_by(TrackingEvent.created_at.desc(), TrackingEvent.id.desc())
+        .all()
+    )
+    return events
 
 
 # ---------- PATCH details (not status) ----------
@@ -203,6 +261,14 @@ def assign_rider(
 
     rider.availability_status = "busy"
 
+    log_event(
+        db,
+        shipment,
+        status_value=ShipmentStatus.PICKUP_ASSIGNED.value,
+        location=None,
+        description=f"Rider assigned: {rider.user.name}",
+    )
+
     db.commit()
     db.refresh(shipment)
     return shipment_to_response(shipment)
@@ -241,6 +307,14 @@ def update_shipment_status(
     # When delivered, free up the assigned rider
     if new_status == ShipmentStatus.DELIVERED and shipment.rider is not None:
         shipment.rider.availability_status = "available"
+
+    log_event(
+        db,
+        shipment,
+        status_value=new_status.value,
+        location=payload.location,
+        description=payload.description,
+    )
 
     db.commit()
     db.refresh(shipment)

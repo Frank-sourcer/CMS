@@ -51,6 +51,8 @@ class ShipmentUpdate(BaseModel):
 
 class ShipmentStatusUpdate(BaseModel):
     status: ShipmentStatus
+    location: str | None = None
+    description: str | None = None
 
 
 class ShipmentAssignRider(BaseModel):
