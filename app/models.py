@@ -130,3 +130,31 @@ class ShipmentMovement(Base):
 
     shipment = relationship("Shipment")
     hub = relationship("Hub")
+
+
+
+
+class ProofOfDelivery(Base):
+    __tablename__ = "proof_of_delivery"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipment_id = Column(
+        Integer,
+        ForeignKey("shipments.id"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    recipient_name = Column(String, nullable=False)
+    signature = Column(String, nullable=True)
+    otp = Column(String, nullable=True)
+    photo_url = Column(String, nullable=True)
+
+    gps_latitude = Column(Float, nullable=True)
+    gps_longitude = Column(Float, nullable=True)
+
+    delivered_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    shipment = relationship("Shipment")

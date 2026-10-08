@@ -5,7 +5,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Shipment, Customer, Rider, TrackingEvent, Hub, ShipmentMovement
+from ..models import (
+    Shipment,
+    Customer,
+    Rider,
+    TrackingEvent,
+    Hub,
+    ShipmentMovement,
+    ProofOfDelivery,
+)
 from ..shipment_schemas import (
     ShipmentCreate,
     ShipmentUpdate,
@@ -17,6 +25,7 @@ from ..shipment_schemas import (
 )
 from ..tracking_schemas import TrackingEventResponse
 from ..hub_schemas import ShipmentMovementResponse
+from ..pod_schemas import ProofOfDeliveryCreate, ProofOfDeliveryResponse
 from ..security import get_current_user, require_role
 
 
@@ -523,3 +532,110 @@ def update_shipment_status(
     db.commit()
     db.refresh(shipment)
     return shipment_to_response(shipment)
+
+
+
+
+# ---------- PROOF OF DELIVERY ----------
+@router.post(
+    "/{shipment_id}/pod",
+    response_model=ProofOfDeliveryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_proof_of_delivery(
+    shipment_id: int,
+    payload: ProofOfDeliveryCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_role("admin", "dispatcher", "rider")),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    if shipment.status != ShipmentStatus.OUT_FOR_DELIVERY.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Cannot record PoD in status '{shipment.status}' "
+                f"(must be 'out_for_delivery')"
+            ),
+        )
+
+    # One PoD per shipment enforced by DB; pre-check gives a clean 409
+    existing = db.query(ProofOfDelivery).filter(
+        ProofOfDelivery.shipment_id == shipment_id
+    ).first()
+
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Proof of delivery already recorded for this shipment",
+        )
+
+    pod = ProofOfDelivery(
+        shipment_id=shipment.id,
+        recipient_name=payload.recipient_name,
+        signature=payload.signature,
+        otp=payload.otp,
+        photo_url=payload.photo_url,
+        gps_latitude=payload.gps_latitude,
+        gps_longitude=payload.gps_longitude,
+    )
+    db.add(pod)
+
+    # Flip shipment to delivered
+    shipment.status = ShipmentStatus.DELIVERED.value
+
+    # Free the rider
+    if shipment.rider is not None:
+        shipment.rider.availability_status = "available"
+
+    log_event(
+        db,
+        shipment,
+        status_value=ShipmentStatus.DELIVERED.value,
+        location=shipment.delivery_address,
+        description=f"Delivered — signed by {payload.recipient_name}",
+    )
+
+    db.commit()
+    db.refresh(pod)
+    return pod
+
+
+@router.get(
+    "/{shipment_id}/pod",
+    response_model=ProofOfDeliveryResponse,
+)
+def get_proof_of_delivery(
+    shipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    pod = db.query(ProofOfDelivery).filter(
+        ProofOfDelivery.shipment_id == shipment_id
+    ).first()
+
+    if pod is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No proof of delivery recorded for this shipment",
+        )
+
+    return pod
