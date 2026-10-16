@@ -10,6 +10,14 @@ load_dotenv()   # reads .env in dev; harmless on Render where env is set by the 
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cms.db")
 
+# SQLAlchemy 2.x defaults to the psycopg (v3) driver for postgres:// and
+# postgresql:// URLs, but we ship psycopg2-binary. Rewrite the scheme so
+# the driver is explicit and never guessed.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 # SQLite needs check_same_thread=False so FastAPI's thread pool can
 # share the connection. Postgres doesn't accept that kwarg at all,
 # so we branch on the URL scheme.
