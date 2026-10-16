@@ -23,6 +23,7 @@ app.include_router(hubs.router)
 app.include_router(payments.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
+
 @app.get("/health")
 def health_check():
     return {
