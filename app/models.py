@@ -191,3 +191,32 @@ class Payment(Base):
 
     shipment = relationship("Shipment")
     collected_by_rider = relationship("Rider")
+
+
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipment_id = Column(
+        Integer,
+        ForeignKey("shipments.id"),
+        nullable=True,
+        index=True,
+    )
+
+    recipient = Column(String, nullable=False)   # phone or email
+    channel = Column(String, nullable=False)     # sms | email | whatsapp
+    template = Column(String, nullable=False)    # event key, e.g. "out_for_delivery"
+    message = Column(String, nullable=False)     # rendered text
+
+    status = Column(String, nullable=False, default="queued")
+    # status values: queued | sent | failed
+
+    sent_at = Column(DateTime, nullable=True)
+    error = Column(String, nullable=True)        # populated if status="failed"
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    shipment = relationship("Shipment")

@@ -14,6 +14,7 @@ from ..models import (
     ShipmentMovement,
     ProofOfDelivery,
     Payment,
+    NotificationLog,
 )
 from ..shipment_schemas import (
     ShipmentCreate,
@@ -28,6 +29,7 @@ from ..tracking_schemas import TrackingEventResponse
 from ..hub_schemas import ShipmentMovementResponse
 from ..pod_schemas import ProofOfDeliveryCreate, ProofOfDeliveryResponse
 from ..payment_schemas import PaymentCreate, PaymentResponse, PaymentStatus
+from ..notification_schemas import NOTIFICATION_TEMPLATES, NotificationLogResponse
 from ..security import get_current_user, require_role, current_user_id
 
 
@@ -80,6 +82,41 @@ def log_event(
     )
     db.add(event)
     return event
+
+
+def notify(
+    db: Session,
+    shipment: Shipment,
+    event: str,
+    channels: tuple[str, ...] = ("sms",),
+) -> list[NotificationLog]:
+    """Queue notifications for a shipment event. Caller must commit.
+
+    Skips silently if there is no template for `event`.
+    Returns the list of created rows (empty if skipped).
+    """
+    template = NOTIFICATION_TEMPLATES.get(event)
+    if template is None:
+        return []
+
+    message = template.format(
+        recipient_name=shipment.recipient_name,
+        tracking_number=shipment.tracking_number,
+    )
+
+    created = []
+    for channel in channels:
+        row = NotificationLog(
+            shipment_id=shipment.id,
+            recipient=shipment.recipient_phone or "",
+            channel=channel,
+            template=event,
+            message=message,
+            status="queued",
+        )
+        db.add(row)
+        created.append(row)
+    return created
 
 
 # ---------- LIST ----------
@@ -164,6 +201,8 @@ def create_shipment(
             method="cod",
             status="pending",
         ))
+
+    notify(db, new_shipment, event="created")
 
     db.commit()
     db.refresh(new_shipment)
@@ -258,6 +297,34 @@ def get_shipment_movements(
         }
         for m in movements
     ]
+
+
+# ---------- GET SHIPMENT NOTIFICATIONS ----------
+@router.get(
+    "/{shipment_id}/notifications",
+    response_model=list[NotificationLogResponse],
+)
+def get_shipment_notifications(
+    shipment_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    return (
+        db.query(NotificationLog)
+        .filter(NotificationLog.shipment_id == shipment_id)
+        .order_by(NotificationLog.created_at.desc(), NotificationLog.id.desc())
+        .all()
+    )
 
 
 # ---------- PATCH details (not status) ----------
@@ -548,6 +615,8 @@ def update_shipment_status(
         description=payload.description,
     )
 
+    notify(db, shipment, event=new_status.value)
+
     db.commit()
     db.refresh(shipment)
     return shipment_to_response(shipment)
@@ -617,6 +686,8 @@ def create_proof_of_delivery(
         location=shipment.delivery_address,
         description=f"Delivered — signed by {payload.recipient_name}",
     )
+
+    notify(db, shipment, event=ShipmentStatus.DELIVERED.value)
 
     db.commit()
     db.refresh(pod)

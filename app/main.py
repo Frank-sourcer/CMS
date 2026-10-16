@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from .database import engine, Base
 from . import models
-from .routers import users, auth, shipments, customers, riders, hubs, payments
+from .routers import users, auth, shipments, customers, riders, hubs, payments, notifications
 
 
 Base.metadata.create_all(bind=engine)
@@ -21,6 +21,7 @@ app.include_router(customers.router)
 app.include_router(riders.router)
 app.include_router(hubs.router)
 app.include_router(payments.router)
+app.include_router(notifications.router)
 
 @app.get("/health")
 def health_check():
