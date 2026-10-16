@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import User, Rider, Shipment
+from ..models import User, Rider, Shipment, Payment
 from ..rider_schemas import (
     RiderCreate,
     RiderUpdate,
@@ -189,4 +189,41 @@ def get_rider_deliveries(
             "created_at": s.created_at,
         }
         for s in shipments
+    ]
+
+
+
+
+@router.get("/{rider_id}/collections")
+def get_rider_collections(
+    rider_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    rider = db.query(Rider).filter(Rider.id == rider_id).first()
+    if rider is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Rider not found",
+        )
+
+    payments = (
+        db.query(Payment)
+        .filter(Payment.collected_by_rider_id == rider_id)
+        .order_by(Payment.collected_at.desc(), Payment.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": p.id,
+            "shipment_id": p.shipment_id,
+            "tracking_number": p.shipment.tracking_number,
+            "amount": p.amount,
+            "method": p.method,
+            "status": p.status,
+            "reference": p.reference,
+            "collected_at": p.collected_at,
+        }
+        for p in payments
     ]

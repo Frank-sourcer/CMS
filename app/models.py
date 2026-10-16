@@ -158,3 +158,36 @@ class ProofOfDelivery(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     shipment = relationship("Shipment")
+
+
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    shipment_id = Column(
+        Integer,
+        ForeignKey("shipments.id"),
+        nullable=False,
+        index=True,
+    )
+
+    amount = Column(Float, nullable=False)
+    method = Column(String, nullable=False)   # cash | mpesa | card | account | cod
+    status = Column(String, nullable=False, default="pending")
+    # status values: pending | paid | failed | refunded
+
+    collected_by_rider_id = Column(
+        Integer,
+        ForeignKey("riders.id"),
+        nullable=True,
+        index=True,
+    )
+    collected_at = Column(DateTime, nullable=True)
+    reference = Column(String, nullable=True)   # M-Pesa code, receipt no, etc.
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    shipment = relationship("Shipment")
+    collected_by_rider = relationship("Rider")

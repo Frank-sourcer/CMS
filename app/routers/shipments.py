@@ -13,6 +13,7 @@ from ..models import (
     Hub,
     ShipmentMovement,
     ProofOfDelivery,
+    Payment,
 )
 from ..shipment_schemas import (
     ShipmentCreate,
@@ -26,7 +27,8 @@ from ..shipment_schemas import (
 from ..tracking_schemas import TrackingEventResponse
 from ..hub_schemas import ShipmentMovementResponse
 from ..pod_schemas import ProofOfDeliveryCreate, ProofOfDeliveryResponse
-from ..security import get_current_user, require_role
+from ..payment_schemas import PaymentCreate, PaymentResponse, PaymentStatus
+from ..security import get_current_user, require_role, current_user_id
 
 
 router = APIRouter(
@@ -145,6 +147,23 @@ def create_shipment(
         location=payload.pickup_address,
         description="Shipment created",
     )
+
+    # Auto-create pending payment rows so we have a ledger from day one.
+    if payload.delivery_fee and payload.delivery_fee > 0:
+        db.add(Payment(
+            shipment_id=new_shipment.id,
+            amount=payload.delivery_fee,
+            method="account",
+            status="pending",
+        ))
+
+    if payload.cod_amount and payload.cod_amount > 0:
+        db.add(Payment(
+            shipment_id=new_shipment.id,
+            amount=payload.cod_amount,
+            method="cod",
+            status="pending",
+        ))
 
     db.commit()
     db.refresh(new_shipment)
@@ -534,8 +553,6 @@ def update_shipment_status(
     return shipment_to_response(shipment)
 
 
-
-
 # ---------- PROOF OF DELIVERY ----------
 @router.post(
     "/{shipment_id}/pod",
@@ -567,7 +584,6 @@ def create_proof_of_delivery(
             ),
         )
 
-    # One PoD per shipment enforced by DB; pre-check gives a clean 409
     existing = db.query(ProofOfDelivery).filter(
         ProofOfDelivery.shipment_id == shipment_id
     ).first()
@@ -589,10 +605,8 @@ def create_proof_of_delivery(
     )
     db.add(pod)
 
-    # Flip shipment to delivered
     shipment.status = ShipmentStatus.DELIVERED.value
 
-    # Free the rider
     if shipment.rider is not None:
         shipment.rider.availability_status = "available"
 
@@ -639,3 +653,55 @@ def get_proof_of_delivery(
         )
 
     return pod
+
+
+# ---------- RECORD PAYMENT ----------
+@router.post(
+    "/{shipment_id}/payment",
+    response_model=PaymentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def record_payment(
+    shipment_id: int,
+    payload: PaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(
+        require_role("admin", "dispatcher", "rider")
+    ),
+):
+    shipment = db.query(Shipment).filter(
+        Shipment.id == shipment_id
+    ).first()
+
+    if shipment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Shipment not found",
+        )
+
+    collected_by_rider_id = None
+    if current_user.get("role") == "rider":
+        rider = db.query(Rider).filter(
+            Rider.user_id == current_user_id(current_user)
+        ).first()
+        if rider is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Rider profile not found for current user",
+            )
+        collected_by_rider_id = rider.id
+
+    payment = Payment(
+        shipment_id=shipment.id,
+        amount=payload.amount,
+        method=payload.method.value,
+        status=PaymentStatus.PAID.value,
+        collected_by_rider_id=collected_by_rider_id,
+        collected_at=datetime.utcnow(),
+        reference=payload.reference,
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+
+    return payment
