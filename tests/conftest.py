@@ -87,3 +87,58 @@ def admin_token(client, admin_user):
 @pytest.fixture
 def auth_headers(admin_token):
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+
+
+@pytest.fixture
+def customer(db_session):
+    """Creates a customer profile with a linked user."""
+    from app.models import User, Customer as CustomerModel
+    user = User(
+        name="Test Customer",
+        email="test-customer@example.com",
+        phone="0711111111",
+        password_hash=hash_password("customerpass"),
+        role="customer",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    customer = CustomerModel(
+        user_id=user.id,
+        customer_type="individual",
+        address="Test Address, Nairobi",
+    )
+    db_session.add(customer)
+    db_session.commit()
+    db_session.refresh(customer)
+    return customer
+
+
+@pytest.fixture
+def rider(db_session):
+    """Creates a rider profile with a linked user."""
+    from app.models import User, Rider as RiderModel
+    user = User(
+        name="Test Rider",
+        email="test-rider@example.com",
+        phone="0722222222",
+        password_hash=hash_password("riderpass"),
+        role="rider",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    rider = RiderModel(
+        user_id=user.id,
+        vehicle_type="motorcycle",
+        vehicle_registration="TEST123",
+        availability_status="available",
+    )
+    db_session.add(rider)
+    db_session.commit()
+    db_session.refresh(rider)
+    return rider
