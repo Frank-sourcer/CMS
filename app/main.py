@@ -1,11 +1,30 @@
+import os
+
 from fastapi import FastAPI
 
 from .database import engine, Base
 from . import models
-from .routers import users, auth, shipments, customers, riders, hubs, payments, notifications, admin
+from .routers import (
+    users,
+    auth,
+    shipments,
+    customers,
+    riders,
+    hubs,
+    payments,
+    notifications,
+    admin,
+)
 
 
-Base.metadata.create_all(bind=engine)
+def create_tables() -> None:
+    Base.metadata.create_all(bind=engine)
+
+
+# Only auto-create tables when not running under pytest.
+# Tests set TESTING=1 and build the schema against their own engine.
+if os.getenv("TESTING") != "1":
+    create_tables()
 
 
 app = FastAPI(
