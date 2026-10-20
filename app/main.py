@@ -1,7 +1,8 @@
 import os
 
 from fastapi import FastAPI
-
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from .database import engine, Base
 from . import models
 from .routers import (
@@ -32,6 +33,7 @@ app = FastAPI(
     version="0.5.0"
 )
 
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(users.router)
 app.include_router(auth.router)
@@ -49,3 +51,7 @@ def health_check():
         "status": "ok",
         "service": "Courier Management System"
     }
+
+@app.get("/admin-ui", include_in_schema=False)
+def admin_ui():
+    return FileResponse("static/admin.html")

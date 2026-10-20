@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMS — Admin Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Menlo', 'Courier New', monospace;
+    background: #0a0e14;
+    color: #c9d1d9;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+  
+  .hidden { display: none !important; }
+  
+  /* ---------- Login ---------- */
+  #login-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  
+  .login-card {
+    background: #131820;
+    border: 1px solid #2d3542;
+    border-radius: 8px;
+    padding: 32px;
+    max-width: 380px;
+    width: 100%;
+  }
+  
+  .login-card h1 {
+    font-size: 20px;
+    color: #58a6ff;
+    margin-bottom: 8px;
+  }
+  
+  .login-card p {
+    color: #768390;
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+  
+  .field { margin-bottom: 16px; }
+  
+  .field label {
+    display: block;
+    color: #8b949e;
+    margin-bottom: 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .field input {
+    width: 100%;
+    background: #0a0e14;
+    border: 1px solid #2d3542;
+    color: #c9d1d9;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  
+  .field input:focus {
+    outline: none;
+    border-color: #58a6ff;
+  }
+  
+  button {
+    background: #238636;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  
+  button:hover { background: #2ea043; }
+  button:disabled { background: #2d3542; cursor: not-allowed; }
+  
+  .btn-block { width: 100%; }
+  
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid #2d3542;
+    color: #8b949e;
+  }
+  
+  .btn-ghost:hover {
+    background: #131820;
+    color: #c9d1d9;
+  }
+  
+  .error {
+    background: #67060c;
+    color: #ffdcd7;
+    padding: 10px 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  
+  /* ---------- Dashboard ---------- */
+  #dashboard-view {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid #2d3542;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .header h1 {
+    font-size: 18px;
+    color: #58a6ff;
+  }
+  
+  .header h1 span {
+    color: #768390;
+    font-size: 12px;
+    margin-left: 8px;
+    font-weight: normal;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+  
+  /* ---------- Cards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  
+  .card {
+    background: #131820;
+    border: 1px solid #2d3542;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  
+  .card .label {
+    color: #768390;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  
+  .card .value {
+    font-size: 28px;
+    color: #c9d1d9;
+    font-weight: 700;
+  }
+  
+  .card.accent-blue .value { color: #58a6ff; }
+  .card.accent-green .value { color: #3fb950; }
+  .card.accent-orange .value { color: #f0883e; }
+  .card.accent-purple .value { color: #a371f7; }
+  
+  /* ---------- Section ---------- */
+  .section {
+    background: #131820;
+    border: 1px solid #2d3542;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  
+  .section h2 {
+    font-size: 14px;
+    color: #c9d1d9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+  
+  /* ---------- Table ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  
+  th {
+    text-align: left;
+    color: #768390;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2d3542;
+    font-weight: normal;
+  }
+  
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #131820;
+  }
+  
+  tr:last-child td { border-bottom: none; }
+  
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-created { background: #1f2937; color: #9ca3af; }
+  .status-pickup_assigned { background: #422006; color: #f0883e; }
+  .status-picked_up { background: #422006; color: #f0883e; }
+  .status-at_hub { background: #1e3a5f; color: #58a6ff; }
+  .status-in_transit { background: #1e3a5f; color: #58a6ff; }
+  .status-out_for_delivery { background: #4a3500; color: #d29922; }
+  .status-delivered { background: #0f2417; color: #3fb950; }
+  .status-failed_delivery { background: #67060c; color: #f85149; }
+  .status-cancelled { background: #2d3542; color: #768390; }
+  
+  .loading {
+    text-align: center;
+    color: #768390;
+    padding: 20px;
+  }
+  
+  .last-updated {
+    font-size: 11px;
+    color: #768390;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN VIEW ============ -->
+<div id="login-view">
+  <div class="login-card">
+    <h1>CMS · Admin</h1>
+    <p>Courier Management System</p>
+    <div id="login-error" class="error hidden"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-block" id="login-btn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD VIEW ============ -->
+<div id="dashboard-view" class="hidden">
+  <div class="header">
+    <h1>CMS · Dashboard <span id="welcome-email"></span></h1>
+    <div class="header-actions">
+      <button class="btn-ghost" onclick="loadDashboard()">Refresh</button>
+      <button class="btn-ghost" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards">
+    <div class="card accent-blue"><div class="label">Shipments</div><div class="value" id="stat-shipments">—</div></div>
+    <div class="card accent-orange"><div class="label">In Transit</div><div class="value" id="stat-in-transit">—</div></div>
+    <div class="card accent-purple"><div class="label">Riders Avail.</div><div class="value" id="stat-riders-available">—</div></div>
+    <div class="card accent-green"><div class="label">Delivered</div><div class="value" id="stat-delivered">—</div></div>
+    <div class="card"><div class="label">Customers</div><div class="value" id="stat-customers">—</div></div>
+    <div class="card"><div class="label">Total Riders</div><div class="value" id="stat-riders">—</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Today's Operations</h2>
+    <div class="cards">
+      <div class="card"><div class="label">Pickups</div><div class="value" id="stat-pickups">—</div></div>
+      <div class="card"><div class="label">Deliveries</div><div class="value" id="stat-deliveries">—</div></div>
+      <div class="card"><div class="label">Failed</div><div class="value" id="stat-failed">—</div></div>
+      <div class="card accent-green"><div class="label">COD Collected</div><div class="value" id="stat-cod">—</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Recent Shipments</h2>
+    <div id="recent-shipments-loading" class="loading">Loading…</div>
+    <table id="recent-shipments" class="hidden">
+      <thead>
+        <tr>
+          <th>Tracking</th>
+          <th>Pickup</th>
+          <th>Delivery</th>
+          <th>Rider</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="recent-shipments-body"></tbody>
+    </table>
+  </div>
+
+  <div class="last-updated" id="last-updated"></div>
+</div>
+
+<script>
+const API = ""; // same origin
+const TOKEN_KEY = "cms_admin_token";
+
+// ---------- Helpers ----------
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getToken();
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  const res = await fetch(API + path, { ...options, headers });
+  if (res.status === 401) {
+    clearToken();
+    showLogin();
+    throw new Error("Session expired");
+  }
+  return res;
+}
+
+function showLogin() {
+  document.getElementById("login-view").classList.remove("hidden");
+  document.getElementById("dashboard-view").classList.add("hidden");
+}
+
+function showDashboard() {
+  document.getElementById("login-view").classList.add("hidden");
+  document.getElementById("dashboard-view").classList.remove("hidden");
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById("login-error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+function clearLoginError() {
+  document.getElementById("login-error").classList.add("hidden");
+}
+
+// ---------- Login ----------
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearLoginError();
+  
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const btn = document.getElementById("login-btn");
+  
+  btn.disabled = true;
+  btn.textContent = "Signing in…";
+  
+  try {
+    const body = new URLSearchParams();
+    body.append("username", email);
+    body.append("password", password);
+    
+    const res = await fetch(API + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || "Login failed");
+    }
+    
+    const data = await res.json();
+    setToken(data.access_token);
+    showDashboard();
+    loadDashboard();
+  } catch (err) {
+    showLoginError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Sign In";
+  }
+});
+
+// ---------- Logout ----------
+function logout() {
+  clearToken();
+  showLogin();
+  document.getElementById("email").value = "";
+  document.getElementById("password").value = "";
+  clearLoginError();
+}
+
+// ---------- Dashboard ----------
+async function loadDashboard() {
+  const loadingEl = document.getElementById("recent-shipments-loading");
+  const tableEl = document.getElementById("recent-shipments");
+  
+  loadingEl.classList.remove("hidden");
+  tableEl.classList.add("hidden");
+  
+  try {
+    const res = await apiFetch("/admin/dashboard");
+    if (!res.ok) throw new Error("Failed to load dashboard");
+    const data = await res.json();
+    
+    // Totals
+    document.getElementById("stat-shipments").textContent = data.totals.shipments;
+    document.getElementById("stat-in-transit").textContent = data.totals.in_transit;
+    document.getElementById("stat-riders-available").textContent = data.totals.riders_available;
+    document.getElementById("stat-delivered").textContent = data.totals.delivered;
+    document.getElementById("stat-customers").textContent = data.totals.customers;
+    document.getElementById("stat-riders").textContent = data.totals.riders;
+    
+    // Today
+    document.getElementById("stat-pickups").textContent = data.today.pickups;
+    document.getElementById("stat-deliveries").textContent = data.today.deliveries;
+    document.getElementById("stat-failed").textContent = data.today.failed;
+    document.getElementById("stat-cod").textContent =
+      "KES " + Number(data.today.cod_collected).toLocaleString();
+    
+    // Recent shipments
+    const tbody = document.getElementById("recent-shipments-body");
+    tbody.innerHTML = "";
+    
+    if (data.recent_shipments.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="loading">No shipments yet</td></tr>';
+    } else {
+      for (const s of data.recent_shipments) {
+        const tr = document.createElement("tr");
+        const statusClass = "status-" + s.status;
+        tr.innerHTML = `
+          <td>${escapeHtml(s.tracking_number)}</td>
+          <td>${escapeHtml(s.pickup_address)}</td>
+          <td>${escapeHtml(s.delivery_address)}</td>
+          <td>${s.rider_name ? escapeHtml(s.rider_name) : '—'}</td>
+          <td><span class="status-badge ${statusClass}">${escapeHtml(s.status)}</span></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+    
+    loadingEl.classList.add("hidden");
+    tableEl.classList.remove("hidden");
+    document.getElementById("last-updated").textContent =
+      "Last updated: " + new Date().toLocaleString();
+  } catch (err) {
+    loadingEl.textContent = "Error: " + err.message;
+    loadingEl.classList.remove("hidden");
+  }
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
+
+// ---------- Boot ----------
+(function init() {
+  if (getToken()) {
+    showDashboard();
+    loadDashboard();
+  } else {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>

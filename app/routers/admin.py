@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..database import get_db, utcnow
 from ..models import Shipment, Rider, Customer, Payment
 from ..shipment_schemas import ShipmentStatus
 from ..security import require_role
