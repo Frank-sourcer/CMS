@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..database import get_db, utcnow
 from ..models import (
     Shipment,
     Customer,
@@ -400,7 +400,7 @@ def assign_rider(
         )
 
     shipment.rider_id = rider.id
-    shipment.assigned_at = datetime.utcnow()
+    shipment.assigned_at = utcnow()
 
     # Assigning from `created` means the rider has to go collect from
     # the sender: flip to pickup_assigned. Assigning from `at_hub` means
@@ -768,7 +768,7 @@ def record_payment(
         method=payload.method.value,
         status=PaymentStatus.PAID.value,
         collected_by_rider_id=collected_by_rider_id,
-        collected_at=datetime.utcnow(),
+        collected_at=utcnow(),
         reference=payload.reference,
     )
     db.add(payment)

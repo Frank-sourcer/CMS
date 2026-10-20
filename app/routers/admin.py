@@ -17,7 +17,7 @@ router = APIRouter(
 
 
 def _today_start() -> datetime:
-    now = datetime.utcnow()
+    now = utcnow()
     return datetime(now.year, now.month, now.day)
 
 
@@ -145,5 +145,5 @@ def get_dashboard(
             "cod_collected": float(cod_today),
         },
         "recent_shipments": recent_shipments,
-        "generated_at": datetime.utcnow(),
+        "generated_at": utcnow(),
     }

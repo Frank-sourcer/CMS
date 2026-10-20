@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class NotificationChannel(str, Enum):
@@ -22,6 +22,7 @@ class NotificationStatusUpdate(BaseModel):
 
 
 class NotificationLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     shipment_id: int | None
     recipient: str
@@ -33,8 +34,6 @@ class NotificationLogResponse(BaseModel):
     error: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
 
 
 # ---------- Message templates ----------

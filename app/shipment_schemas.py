@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ShipmentStatus(str, Enum):
@@ -60,6 +60,8 @@ class ShipmentAssignRider(BaseModel):
 
 
 class ShipmentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     tracking_number: str
     customer_id: int | None
@@ -83,8 +85,6 @@ class ShipmentResponse(BaseModel):
     assigned_at: datetime | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
 
 
 SHIPMENT_TRANSITIONS = {

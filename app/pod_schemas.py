@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ProofOfDeliveryCreate(BaseModel):
@@ -15,6 +15,7 @@ class ProofOfDeliveryCreate(BaseModel):
 
 
 class ProofOfDeliveryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     shipment_id: int
 
@@ -29,5 +30,3 @@ class ProofOfDeliveryResponse(BaseModel):
     delivered_at: datetime
     created_at: datetime
 
-    class Config:
-        from_attributes = True

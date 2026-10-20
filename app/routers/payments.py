@@ -73,7 +73,7 @@ def update_payment_status(
         payload.status == PaymentStatus.PAID
         and payment.collected_at is None
     ):
-        payment.collected_at = datetime.utcnow()
+        payment.collected_at = utcnow()
 
     db.commit()
     db.refresh(payment)

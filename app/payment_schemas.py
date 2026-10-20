@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field,  ConfigDict
 
 
 class PaymentMethod(str, Enum):
@@ -32,6 +32,7 @@ class PaymentStatusUpdate(BaseModel):
 
 
 class PaymentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     shipment_id: int
     amount: float
@@ -42,5 +43,3 @@ class PaymentResponse(BaseModel):
     reference: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True

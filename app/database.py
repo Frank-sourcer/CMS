@@ -45,3 +45,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def utcnow():
+    """Naive UTC timestamp. Drop-in replacement for the deprecated
+    datetime.utcnow(). Returns a timezone-naive datetime for storage
+    compatibility with existing TIMESTAMP columns."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).replace(tzinfo=None)

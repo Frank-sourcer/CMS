@@ -75,7 +75,7 @@ def update_notification_status(
     notification.status = payload.status.value
 
     if payload.status == NotificationStatus.SENT:
-        notification.sent_at = datetime.utcnow()
+        notification.sent_at = utcnow()
         notification.error = None
     elif payload.status == NotificationStatus.FAILED:
         notification.error = payload.error or "Unknown error"

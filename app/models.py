@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import relationship
-from .database import Base
+from .database import Base, utcnow
 
 
 class User(Base):
@@ -14,7 +14,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, default="customer")   # admin | dispatcher | rider | customer | hub_staff
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="user", uselist=False)
     rider = relationship("Rider", back_populates="user", uselist=False)
@@ -28,7 +28,7 @@ class Customer(Base):
     customer_type = Column(String, default="individual")  # individual | business
     company_name = Column(String, nullable=True)
     address = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="customer")
     shipments = relationship("Shipment", back_populates="customer")
@@ -42,7 +42,7 @@ class Rider(Base):
     vehicle_type = Column(String, nullable=False)
     vehicle_registration = Column(String, nullable=True)
     availability_status = Column(String, default="available")  # available | busy | offline | suspended
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="rider")
 
@@ -70,7 +70,7 @@ class Shipment(Base):
     status = Column(String, default="created")
 
     assigned_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="shipments")
     rider = relationship("Rider")
@@ -91,7 +91,7 @@ class TrackingEvent(Base):
     status = Column(String, nullable=False)
     location = Column(String, nullable=True)
     description = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     shipment = relationship("Shipment")
 
@@ -106,7 +106,7 @@ class Hub(Base):
     code = Column(String, unique=True, nullable=False)   # e.g. "NRB"
     location = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class ShipmentMovement(Base):
@@ -126,7 +126,7 @@ class ShipmentMovement(Base):
         index=True,
     )
     direction = Column(String, nullable=False)   # "in" | "out"
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     shipment = relationship("Shipment")
     hub = relationship("Hub")
@@ -154,8 +154,8 @@ class ProofOfDelivery(Base):
     gps_latitude = Column(Float, nullable=True)
     gps_longitude = Column(Float, nullable=True)
 
-    delivered_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    delivered_at = Column(DateTime, nullable=False, default=utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     shipment = relationship("Shipment")
 
@@ -187,7 +187,7 @@ class Payment(Base):
     collected_at = Column(DateTime, nullable=True)
     reference = Column(String, nullable=True)   # M-Pesa code, receipt no, etc.
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     shipment = relationship("Shipment")
     collected_by_rider = relationship("Rider")
@@ -217,6 +217,6 @@ class NotificationLog(Base):
     sent_at = Column(DateTime, nullable=True)
     error = Column(String, nullable=True)        # populated if status="failed"
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     shipment = relationship("Shipment")

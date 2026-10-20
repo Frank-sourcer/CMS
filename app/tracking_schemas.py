@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class TrackingEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     shipment_id: int
     status: str
@@ -11,5 +13,3 @@ class TrackingEventResponse(BaseModel):
     description: str | None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
