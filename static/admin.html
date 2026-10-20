@@ -198,10 +198,16 @@
   }
   
   /* ---------- Table ---------- */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    min-width: 500px; /* prevents squishing on mobile */
   }
   
   th {
@@ -213,11 +219,13 @@
     padding: 8px 12px;
     border-bottom: 1px solid #2d3542;
     font-weight: normal;
+    white-space: nowrap;
   }
   
   td {
     padding: 10px 12px;
     border-bottom: 1px solid #131820;
+    white-space: nowrap;
   }
   
   tr:last-child td { border-bottom: none; }
@@ -308,18 +316,22 @@
   <div class="section">
     <h2>Recent Shipments</h2>
     <div id="recent-shipments-loading" class="loading">Loading…</div>
-    <table id="recent-shipments" class="hidden">
-      <thead>
-        <tr>
-          <th>Tracking</th>
-          <th>Pickup</th>
-          <th>Delivery</th>
-          <th>Rider</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="recent-shipments-body"></tbody>
-    </table>
+    
+    <!-- Added the table-wrapper for mobile scrolling -->
+    <div class="table-wrapper hidden" id="recent-shipments-wrapper">
+      <table id="recent-shipments">
+        <thead>
+          <tr>
+            <th>Tracking</th>
+            <th>Pickup</th>
+            <th>Delivery</th>
+            <th>Rider</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="recent-shipments-body"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="last-updated" id="last-updated"></div>
@@ -429,10 +441,10 @@ function logout() {
 // ---------- Dashboard ----------
 async function loadDashboard() {
   const loadingEl = document.getElementById("recent-shipments-loading");
-  const tableEl = document.getElementById("recent-shipments");
+  const wrapperEl = document.getElementById("recent-shipments-wrapper");
   
   loadingEl.classList.remove("hidden");
-  tableEl.classList.add("hidden");
+  wrapperEl.classList.add("hidden");
   
   try {
     const res = await apiFetch("/admin/dashboard");
@@ -476,7 +488,7 @@ async function loadDashboard() {
     }
     
     loadingEl.classList.add("hidden");
-    tableEl.classList.remove("hidden");
+    wrapperEl.classList.remove("hidden");
     document.getElementById("last-updated").textContent =
       "Last updated: " + new Date().toLocaleString();
   } catch (err) {
