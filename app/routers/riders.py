@@ -15,7 +15,7 @@ from ..security import (
     require_role,
     current_user_id,
 )
-
+from ..pagination import PaginatedResponse
 
 router = APIRouter(
     prefix="/riders",
@@ -39,13 +39,32 @@ def rider_to_response(rider: Rider) -> dict:
     }
 
 
-@router.get("/", response_model=list[RiderResponse])
+@router.get("/", response_model=PaginatedResponse[RiderResponse])
 def get_riders(
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    return [rider_to_response(r) for r in db.query(Rider).all()]
+    if limit > 100:
+        limit = 100
 
+    total = db.query(Rider).count()
+    riders = (
+        db.query(Rider)
+        .order_by(Rider.created_at.desc(), Rider.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "items": [rider_to_response(r) for r in riders],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + len(riders) < total,
+    }
 
 @router.post(
     "/",

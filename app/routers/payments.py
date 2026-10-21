@@ -11,6 +11,7 @@ from ..payment_schemas import (
     PaymentResponse,
     PaymentStatus,
 )
+from ..pagination import PaginatedResponse
 from ..security import get_current_user, require_role, current_user_id
 
 
@@ -20,13 +21,32 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[PaymentResponse])
+@router.get("/", response_model=PaginatedResponse[PaymentResponse])
 def get_payments(
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("admin", "dispatcher")),
 ):
-    return db.query(Payment).all()
+    if limit > 100:
+        limit = 100
 
+    total = db.query(Payment).count()
+    payments = (
+        db.query(Payment)
+        .order_by(Payment.created_at.desc(), Payment.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "items": payments,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + len(payments) < total,
+    }
 
 @router.get("/{payment_id}", response_model=PaymentResponse)
 def get_payment(

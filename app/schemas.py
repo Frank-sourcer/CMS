@@ -9,6 +9,11 @@ class UserCreate(BaseModel):
     password: str
     role: str = "customer"
 
+class UserRegister(BaseModel):
+    name: str
+    email: EmailStr
+    phone: str | None = None
+    password: str
 
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

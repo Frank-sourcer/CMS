@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Hub
 from ..hub_schemas import HubCreate, HubUpdate, HubResponse
+from ..pagination import PaginatedResponse
 from ..security import get_current_user, require_role
 
 
@@ -14,13 +15,32 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[HubResponse])
+@router.get("/", response_model=PaginatedResponse[HubResponse])
 def get_hubs(
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    return db.query(Hub).all()
+    if limit > 100:
+        limit = 100
 
+    total = db.query(Hub).count()
+    hubs = (
+        db.query(Hub)
+        .order_by(Hub.created_at.desc(), Hub.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "items": hubs,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + len(hubs) < total,
+    }
 
 @router.post(
     "/",

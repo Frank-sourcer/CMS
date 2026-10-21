@@ -27,6 +27,7 @@ from ..shipment_schemas import (
 )
 from ..tracking_schemas import TrackingEventResponse
 from ..hub_schemas import ShipmentMovementResponse
+from ..pagination import PaginatedResponse
 from ..pod_schemas import ProofOfDeliveryCreate, ProofOfDeliveryResponse
 from ..payment_schemas import PaymentCreate, PaymentResponse, PaymentStatus
 from ..notification_schemas import NOTIFICATION_TEMPLATES, NotificationLogResponse
@@ -120,14 +121,32 @@ def notify(
 
 
 # ---------- LIST ----------
-@router.get("/", response_model=list[ShipmentResponse])
+@router.get("/", response_model=PaginatedResponse[ShipmentResponse])
 def get_shipments(
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    shipments = db.query(Shipment).all()
-    return [shipment_to_response(s) for s in shipments]
+    if limit > 100:
+        limit = 100
 
+    total = db.query(Shipment).count()
+    shipments = (
+        db.query(Shipment)
+        .order_by(Shipment.created_at.desc(), Shipment.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "items": [shipment_to_response(s) for s in shipments],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + len(shipments) < total,
+    }
 
 # ---------- CREATE ----------
 @router.post(

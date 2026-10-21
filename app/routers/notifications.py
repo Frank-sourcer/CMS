@@ -10,6 +10,7 @@ from ..notification_schemas import (
     NotificationStatusUpdate,
     NotificationStatus,
 )
+from ..pagination import PaginatedResponse
 from ..security import get_current_user, require_role
 
 
@@ -19,17 +20,32 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[NotificationLogResponse])
+@router.get("/", response_model=PaginatedResponse[NotificationLogResponse])
 def get_notifications(
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("admin", "dispatcher")),
 ):
-    return (
+    if limit > 100:
+        limit = 100
+
+    total = db.query(NotificationLog).count()
+    notifications = (
         db.query(NotificationLog)
         .order_by(NotificationLog.created_at.desc(), NotificationLog.id.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
+    return {
+        "items": notifications,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "has_more": skip + len(notifications) < total,
+    }
 
 @router.get("/{notification_id}", response_model=NotificationLogResponse)
 def get_notification(
