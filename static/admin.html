@@ -1,4 +1,4 @@
-	<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -220,13 +220,27 @@ async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  const res = await fetch(API + path, { ...options, headers });
-  if (res.status === 401) {
-    clearToken();
-    showLogin();
-    throw new Error("Session expired");
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+  try {
+    const res = await fetch(API + path, { ...options, headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (res.status === 401) {
+      clearToken();
+      showLogin();
+      throw new Error("Session expired");
+    }
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error("Server is waking up. Please wait 30 seconds and try again.");
+    }
+    throw err;
   }
-  return res;
 }
 
 function showLogin() {
@@ -437,20 +451,4 @@ document.getElementById("create-shipment-form").addEventListener("submit", async
   try {
     const res = await apiFetch("/shipments/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      throw new Error(d.detail || "Failed to create");
-    }
-    
-    document.getElementById("create-shipment-form").reset();
-    loadAllShipments();
-    
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.classList.remove("hidden");
-  } finally {
-    btn
+      headers: { "Content-Type": "applic
