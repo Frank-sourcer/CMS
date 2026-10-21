@@ -15,6 +15,7 @@ from .routers import (
     payments,
     notifications,
     admin,
+    mpesa_router
 )
 
 
@@ -44,6 +45,7 @@ app.include_router(hubs.router)
 app.include_router(payments.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
+app.include_router(mpesa_router.router)
 
 @app.get("/health")
 def health_check():
