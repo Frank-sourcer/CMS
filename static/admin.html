@@ -65,8 +65,7 @@
   .status-failed_delivery { background: #67060c; color: #f85149; }
   .status-cancelled { background: #2d3542; color: #768390; }
   .loading { text-align: center; color: #768390; padding: 20px; }
-  .last-updated { font-size: 11px; color: #768390; margin-top: 8px; }
-
+  
   /* Form Grid */
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
@@ -98,14 +97,14 @@
   </div>
 
   <div class="nav-tabs">
-    <div class="nav-tab active" onclick="switchTab('dashboard', this)">Dashboard</div>
-    <div class="nav-tab" onclick="switchTab('shipments', this)">Shipments</div>
-    <div class="nav-tab" onclick="switchTab('customers', this)">Customers</div>
-    <div class="nav-tab" onclick="switchTab('riders', this)">Riders</div>
+    <div class="nav-tab active" id="nav-btn-dashboard" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="nav-tab" id="nav-btn-shipments" onclick="switchTab('shipments')">Shipments</div>
+    <div class="nav-tab" id="nav-btn-customers" onclick="switchTab('customers')">Customers</div>
+    <div class="nav-tab" id="nav-btn-riders" onclick="switchTab('riders')">Riders</div>
   </div>
 
-  <!-- TAB: DASHBOARD -->
-  <div id="tab-dashboard">
+  <!-- DASHBOARD TAB -->
+  <div id="tab-content-dashboard">
     <div class="cards">
       <div class="card accent-blue"><div class="label">Shipments</div><div class="value" id="stat-shipments">—</div></div>
       <div class="card accent-orange"><div class="label">In Transit</div><div class="value" id="stat-in-transit">—</div></div>
@@ -135,8 +134,8 @@
     </div>
   </div>
 
-  <!-- TAB: SHIPMENTS -->
-  <div id="tab-shipments" class="hidden">
+  <!-- SHIPMENTS TAB -->
+  <div id="tab-content-shipments" class="hidden">
     <div class="section">
       <h2>Create New Shipment</h2>
       <div id="create-error" class="error hidden"></div>
@@ -170,8 +169,8 @@
     </div>
   </div>
 
-  <!-- TAB: CUSTOMERS -->
-  <div id="tab-customers" class="hidden">
+  <!-- CUSTOMERS TAB -->
+  <div id="tab-content-customers" class="hidden">
     <div class="section">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>All Customers</h2>
@@ -187,8 +186,8 @@
     </div>
   </div>
 
-  <!-- TAB: RIDERS -->
-  <div id="tab-riders" class="hidden">
+  <!-- RIDERS TAB -->
+  <div id="tab-content-riders" class="hidden">
     <div class="section">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>All Riders</h2>
@@ -234,19 +233,25 @@ function showLogin() {
   document.getElementById("login-view").classList.remove("hidden");
   document.getElementById("dashboard-view").classList.add("hidden");
 }
+
 function showDashboard() {
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("dashboard-view").classList.remove("hidden");
 }
 
-// ---------- Tab Switching ----------
-function switchTab(tabName, el) {
+// ---------- Tab Switching (Simplified & Robust) ----------
+function switchTab(tabName) {
+  // 1. Update active tab styling
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  if (el) el.classList.add('active');
+  const btn = document.getElementById('nav-btn-' + tabName);
+  if (btn) btn.classList.add('active');
   
-  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
-  document.getElementById('tab-' + tabName).classList.remove('hidden');
+  // 2. Hide all content, show selected
+  document.querySelectorAll('[id^="tab-content-"]').forEach(el => el.classList.add('hidden'));
+  const content = document.getElementById('tab-content-' + tabName);
+  if (content) content.classList.remove('hidden');
   
+  // 3. Trigger data load
   if (tabName === 'dashboard') loadDashboard();
   if (tabName === 'shipments') loadAllShipments();
   if (tabName === 'customers') loadCustomers();
@@ -268,6 +273,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     const body = new URLSearchParams();
     body.append("username", email);
     body.append("password", password);
+    
     const res = await fetch(API + "/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -282,9 +288,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     const data = await res.json();
     setToken(data.access_token);
     showDashboard();
-    
-    // The fix: We pass null instead of querying the DOM before it's ready
-    switchTab('dashboard', null);
+    switchTab('dashboard');
     
   } catch (err) {
     errEl.textContent = err.message;
@@ -301,7 +305,7 @@ function logout() {
   document.getElementById("password").value = "";
 }
 
-// ---------- Dashboard ----------
+// ---------- Dashboard Data ----------
 async function loadDashboard() {
   const loadingEl = document.getElementById("recent-shipments-loading");
   const wrapperEl = document.getElementById("recent-shipments-wrapper");
@@ -368,7 +372,6 @@ async function loadAllShipments() {
       for (const s of data.items) {
         const statusClass = "status-" + s.status;
         
-        // Add "Assign Rider" button if status is 'created'
         let actionHtml = '—';
         if (s.status === 'created') {
           actionHtml = `<button class="btn-ghost btn-sm" onclick="promptAssignRider(${s.id})">Assign Rider</button>`;
@@ -408,7 +411,7 @@ async function promptAssignRider(shipmentId) {
       throw new Error(d.detail || "Failed to assign");
     }
     
-    loadAllShipments(); // refresh table
+    loadAllShipments(); // refresh
   } catch (err) {
     alert("Error: " + err.message);
   }
@@ -447,9 +450,4 @@ document.getElementById("create-shipment-form").addEventListener("submit", async
     }
     
     document.getElementById("create-shipment-form").reset();
-    loadAllShipments();
-    
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.classList.remove("hidden");
-  } fi
+    l
