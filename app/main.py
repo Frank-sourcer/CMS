@@ -54,4 +54,10 @@ def health_check():
 
 @app.get("/admin-ui", include_in_schema=False)
 def admin_ui():
-    return FileResponse("static/admin.html")
+    # Add headers to completely disable browser caching
+    headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    return FileResponse("static/admin.html", headers=headers)
