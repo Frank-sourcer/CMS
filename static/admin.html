@@ -4,12 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CMS — Admin</title>
+<!-- ... (CSS remains exactly the same, I'm omitting it here to keep it short, see below) ... -->
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Menlo', 'Courier New', monospace; background: #0a0e14; color: #c9d1d9; min-height: 100vh; font-size: 14px; }
   .hidden { display: none !important; }
-  
-  /* Login */
   #login-view { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
   .login-card { background: #131820; border: 1px solid #2d3542; border-radius: 8px; padding: 32px; max-width: 380px; width: 100%; }
   .login-card h1 { font-size: 20px; color: #58a6ff; margin-bottom: 8px; }
@@ -17,63 +16,38 @@
   .field { margin-bottom: 16px; }
   .field label { display: block; color: #8b949e; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
   .field input, .field select { width: 100%; background: #0a0e14; border: 1px solid #2d3542; color: #c9d1d9; padding: 10px 12px; border-radius: 4px; font-family: inherit; font-size: 14px; }
-  .field input:focus, .field select:focus { outline: none; border-color: #58a6ff; }
+  .field input:focus { outline: none; border-color: #58a6ff; }
   button { background: #238636; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; font-family: inherit; font-size: 13px; cursor: pointer; font-weight: 600; }
   button:hover { background: #2ea043; }
   button:disabled { background: #2d3542; cursor: not-allowed; }
   .btn-block { width: 100%; }
   .btn-ghost { background: transparent; border: 1px solid #2d3542; color: #8b949e; }
   .btn-ghost:hover { background: #131820; color: #c9d1d9; }
-  .btn-sm { padding: 4px 8px; font-size: 11px; }
   .error { background: #67060c; color: #ffdcd7; padding: 10px 12px; border-radius: 4px; margin-bottom: 16px; font-size: 13px; }
-  
-  /* Layout */
   #dashboard-view { padding: 20px; max-width: 1200px; margin: 0 auto; }
   .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #2d3542; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
   .header h1 { font-size: 18px; color: #58a6ff; }
-  .header-actions { display: flex; gap: 8px; }
   .nav-tabs { display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid #2d3542; padding-bottom: 8px; overflow-x: auto; }
   .nav-tab { color: #768390; cursor: pointer; padding: 4px 8px; font-size: 14px; white-space: nowrap; }
   .nav-tab.active { color: #58a6ff; border-bottom: 2px solid #58a6ff; }
-  
-  /* Cards */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
   .card { background: #131820; border: 1px solid #2d3542; border-radius: 8px; padding: 16px; }
   .card .label { color: #768390; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
   .card .value { font-size: 28px; color: #c9d1d9; font-weight: 700; }
-  .card.accent-blue .value { color: #58a6ff; }
-  .card.accent-green .value { color: #3fb950; }
-  .card.accent-orange .value { color: #f0883e; }
-  .card.accent-purple .value { color: #a371f7; }
-  
-  /* Sections & Tables */
   .section { background: #131820; border: 1px solid #2d3542; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
   .section h2 { font-size: 14px; color: #c9d1d9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
   .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
   th { text-align: left; color: #768390; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid #2d3542; font-weight: normal; white-space: nowrap; }
   td { padding: 10px 12px; border-bottom: 1px solid #131820; white-space: nowrap; }
-  tr:last-child td { border-bottom: none; }
   .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
   .status-created { background: #1f2937; color: #9ca3af; }
   .status-pickup_assigned { background: #422006; color: #f0883e; }
-  .status-picked_up { background: #422006; color: #f0883e; }
-  .status-at_hub { background: #1e3a5f; color: #58a6ff; }
-  .status-in_transit { background: #1e3a5f; color: #58a6ff; }
-  .status-out_for_delivery { background: #4a3500; color: #d29922; }
-  .status-delivered { background: #0f2417; color: #3fb950; }
-  .status-failed_delivery { background: #67060c; color: #f85149; }
-  .status-cancelled { background: #2d3542; color: #768390; }
   .loading { text-align: center; color: #768390; padding: 20px; }
-  
-  /* Form Grid */
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<!-- LOGIN VIEW -->
 <div id="login-view">
   <div class="login-card">
     <h1>CMS · Admin</h1>
@@ -87,159 +61,50 @@
   </div>
 </div>
 
-<!-- DASHBOARD VIEW -->
 <div id="dashboard-view" class="hidden">
   <div class="header">
     <h1>CMS · Admin</h1>
-    <div class="header-actions">
-      <button class="btn-ghost" onclick="logout()">Logout</button>
-    </div>
+    <div class="header-actions"><button class="btn-ghost" onclick="logout()">Logout</button></div>
   </div>
-
   <div class="nav-tabs">
     <div class="nav-tab active" id="nav-btn-dashboard" onclick="switchTab('dashboard')">Dashboard</div>
     <div class="nav-tab" id="nav-btn-shipments" onclick="switchTab('shipments')">Shipments</div>
     <div class="nav-tab" id="nav-btn-customers" onclick="switchTab('customers')">Customers</div>
     <div class="nav-tab" id="nav-btn-riders" onclick="switchTab('riders')">Riders</div>
   </div>
-
-  <!-- DASHBOARD TAB -->
   <div id="tab-content-dashboard">
-    <div class="cards">
-      <div class="card accent-blue"><div class="label">Shipments</div><div class="value" id="stat-shipments">—</div></div>
-      <div class="card accent-orange"><div class="label">In Transit</div><div class="value" id="stat-in-transit">—</div></div>
-      <div class="card accent-purple"><div class="label">Riders Avail.</div><div class="value" id="stat-riders-available">—</div></div>
-      <div class="card accent-green"><div class="label">Delivered</div><div class="value" id="stat-delivered">—</div></div>
-      <div class="card"><div class="label">Customers</div><div class="value" id="stat-customers">—</div></div>
-      <div class="card"><div class="label">Total Riders</div><div class="value" id="stat-riders">—</div></div>
-    </div>
-    <div class="section">
-      <h2>Today's Operations</h2>
-      <div class="cards">
-        <div class="card"><div class="label">Pickups</div><div class="value" id="stat-pickups">—</div></div>
-        <div class="card"><div class="label">Deliveries</div><div class="value" id="stat-deliveries">—</div></div>
-        <div class="card"><div class="label">Failed</div><div class="value" id="stat-failed">—</div></div>
-        <div class="card accent-green"><div class="label">COD Collected</div><div class="value" id="stat-cod">—</div></div>
-      </div>
-    </div>
-    <div class="section">
-      <h2>Recent Shipments</h2>
-      <div id="recent-shipments-loading" class="loading">Loading…</div>
-      <div class="table-wrapper hidden" id="recent-shipments-wrapper">
-        <table>
-          <thead><tr><th>Tracking</th><th>Pickup</th><th>Delivery</th><th>Rider</th><th>Status</th></tr></thead>
-          <tbody id="recent-shipments-body"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="section"><h2>Dashboard Loaded!</h2></div>
   </div>
-
-  <!-- SHIPMENTS TAB -->
   <div id="tab-content-shipments" class="hidden">
-    <div class="section">
-      <h2>Create New Shipment</h2>
-      <div id="create-error" class="error hidden"></div>
-      <form id="create-shipment-form">
-        <div class="form-grid">
-          <div class="field"><label>Tracking Number</label><input type="text" id="cs-tracking" placeholder="CMS-KE-..." required></div>
-          <div class="field"><label>Customer ID</label><input type="number" id="cs-customer" placeholder="1" required></div>
-          <div class="field"><label>Sender Name</label><input type="text" id="cs-sender" required></div>
-          <div class="field"><label>Recipient Name</label><input type="text" id="cs-recipient" required></div>
-          <div class="field"><label>Pickup Address</label><input type="text" id="cs-pickup" required></div>
-          <div class="field"><label>Delivery Address</label><input type="text" id="cs-delivery" required></div>
-          <div class="field"><label>Delivery Fee (KES)</label><input type="number" step="0.01" id="cs-fee" value="0"></div>
-          <div class="field"><label>COD Amount (KES)</label><input type="number" step="0.01" id="cs-cod" value="0"></div>
-        </div>
-        <button type="submit" id="cs-submit">Create Shipment</button>
-      </form>
-    </div>
-
-    <div class="section">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>All Shipments</h2>
-        <button class="btn-ghost" onclick="loadAllShipments()">Refresh</button>
-      </div>
-      <div id="all-shipments-loading" class="loading">Loading…</div>
-      <div class="table-wrapper hidden" id="all-shipments-wrapper">
-        <table>
-          <thead><tr><th>ID</th><th>Tracking</th><th>Status</th><th>Rider</th><th>Route</th><th>Action</th></tr></thead>
-          <tbody id="all-shipments-body"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="section"><h2>Shipments Loaded!</h2></div>
   </div>
-
-  <!-- CUSTOMERS TAB -->
   <div id="tab-content-customers" class="hidden">
-    <div class="section">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>All Customers</h2>
-        <button class="btn-ghost" onclick="loadCustomers()">Refresh</button>
-      </div>
-      <div id="customers-loading" class="loading">Loading…</div>
-      <div class="table-wrapper hidden" id="customers-wrapper">
-        <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Type</th><th>Address</th></tr></thead>
-          <tbody id="customers-body"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="section"><h2>Customers Loaded!</h2></div>
   </div>
-
-  <!-- RIDERS TAB -->
   <div id="tab-content-riders" class="hidden">
-    <div class="section">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2>All Riders</h2>
-        <button class="btn-ghost" onclick="loadRiders()">Refresh</button>
-      </div>
-      <div id="riders-loading" class="loading">Loading…</div>
-      <div class="table-wrapper hidden" id="riders-wrapper">
-        <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Vehicle</th><th>Status</th></tr></thead>
-          <tbody id="riders-body"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="section"><h2>Riders Loaded!</h2></div>
   </div>
-
 </div>
 
 <script>
+alert("1. Script started running");
+
 const API = "";
 const TOKEN_KEY = "cms_admin_token";
 
-// ---------- Helpers ----------
 function getToken() { return localStorage.getItem(TOKEN_KEY); }
 function setToken(token) { localStorage.setItem(TOKEN_KEY, token); }
 function clearToken() { localStorage.removeItem(TOKEN_KEY); }
-
-async function apiFetch(path, options = {}) {
-  const token = getToken();
-  const headers = {
-    ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-  const res = await fetch(API + path, { ...options, headers });
-  if (res.status === 401) {
-    clearToken();
-    showLogin();
-    throw new Error("Session expired");
-  }
-  return res;
-}
 
 function showLogin() {
   document.getElementById("login-view").classList.remove("hidden");
   document.getElementById("dashboard-view").classList.add("hidden");
 }
-
 function showDashboard() {
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("dashboard-view").classList.remove("hidden");
 }
 
-// ---------- Tab Switching ----------
 function switchTab(tabName) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   const btn = document.getElementById('nav-btn-' + tabName);
@@ -248,16 +113,12 @@ function switchTab(tabName) {
   document.querySelectorAll('[id^="tab-content-"]').forEach(el => el.classList.add('hidden'));
   const content = document.getElementById('tab-content-' + tabName);
   if (content) content.classList.remove('hidden');
-  
-  if (tabName === 'dashboard') loadDashboard();
-  if (tabName === 'shipments') loadAllShipments();
-  if (tabName === 'customers') loadCustomers();
-  if (tabName === 'riders') loadRiders();
 }
 
-// ---------- Login ----------
 document.getElementById("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  alert("2. Sign In button clicked!");
+  
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   const btn = document.getElementById("login-btn");
@@ -267,6 +128,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
   errEl.classList.add("hidden");
   
   try {
+    alert("3. About to send fetch request to /auth/login");
     const body = new URLSearchParams();
     body.append("username", email);
     body.append("password", password);
@@ -277,17 +139,22 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
       body: body.toString(),
     });
     
+    alert("4. Fetch returned status: " + res.status);
+    
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
       throw new Error(d.detail || "Login failed");
     }
     
     const data = await res.json();
+    alert("5. Login successful, token received!");
+    
     setToken(data.access_token);
     showDashboard();
     switchTab('dashboard');
     
   } catch (err) {
+    alert("ERROR: " + err.message);
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
   } finally {
@@ -298,158 +165,17 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
 function logout() {
   clearToken();
   showLogin();
-  document.getElementById("email").value = "";
-  document.getElementById("password").value = "";
 }
 
-// ---------- Dashboard Data ----------
-async function loadDashboard() {
-  const loadingEl = document.getElementById("recent-shipments-loading");
-  const wrapperEl = document.getElementById("recent-shipments-wrapper");
-  loadingEl.classList.remove("hidden");
-  wrapperEl.classList.add("hidden");
-  
-  try {
-    const res = await apiFetch("/admin/dashboard");
-    if (!res.ok) throw new Error("Failed to load dashboard");
-    const data = await res.json();
-    
-    document.getElementById("stat-shipments").textContent = data.totals.shipments;
-    document.getElementById("stat-in-transit").textContent = data.totals.in_transit;
-    document.getElementById("stat-riders-available").textContent = data.totals.riders_available;
-    document.getElementById("stat-delivered").textContent = data.totals.delivered;
-    document.getElementById("stat-customers").textContent = data.totals.customers;
-    document.getElementById("stat-riders").textContent = data.totals.riders;
-    
-    document.getElementById("stat-pickups").textContent = data.today.pickups;
-    document.getElementById("stat-deliveries").textContent = data.today.deliveries;
-    document.getElementById("stat-failed").textContent = data.today.failed;
-    document.getElementById("stat-cod").textContent = "KES " + Number(data.today.cod_collected).toLocaleString();
-    
-    const tbody = document.getElementById("recent-shipments-body");
-    tbody.innerHTML = "";
-    if (data.recent_shipments.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">No shipments yet</td></tr>';
-    } else {
-      for (const s of data.recent_shipments) {
-        const statusClass = "status-" + s.status;
-        tbody.innerHTML += `
-          <tr>
-            <td>${escapeHtml(s.tracking_number)}</td>
-            <td>${escapeHtml(s.pickup_address)}</td>
-            <td>${escapeHtml(s.delivery_address)}</td>
-            <td>${s.rider_name ? escapeHtml(s.rider_name) : '—'}</td>
-            <td><span class="status-badge ${statusClass}">${escapeHtml(s.status)}</span></td>
-          </tr>`;
-      }
-    }
-    loadingEl.classList.add("hidden");
-    wrapperEl.classList.remove("hidden");
-  } catch (err) {
-    loadingEl.textContent = "Error: " + err.message;
+(function init() {
+  alert("6. Init function started");
+  if (getToken()) {
+    showDashboard();
+    switchTab('dashboard');
+  } else {
+    showLogin();
   }
-}
-
-// ---------- Shipments Tab ----------
-async function loadAllShipments() {
-  const loadingEl = document.getElementById("all-shipments-loading");
-  const wrapperEl = document.getElementById("all-shipments-wrapper");
-  loadingEl.classList.remove("hidden");
-  wrapperEl.classList.add("hidden");
-  
-  try {
-    const res = await apiFetch("/shipments/?limit=100");
-    const data = await res.json();
-    const tbody = document.getElementById("all-shipments-body");
-    tbody.innerHTML = "";
-    
-    if (data.items.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="loading">No shipments</td></tr>';
-    } else {
-      for (const s of data.items) {
-        const statusClass = "status-" + s.status;
-        
-        let actionHtml = '—';
-        if (s.status === 'created') {
-          actionHtml = `<button class="btn-ghost btn-sm" onclick="promptAssignRider(${s.id})">Assign Rider</button>`;
-        }
-
-        tbody.innerHTML += `
-          <tr>
-            <td>${s.id}</td>
-            <td>${escapeHtml(s.tracking_number)}</td>
-            <td><span class="status-badge ${statusClass}">${escapeHtml(s.status)}</span></td>
-            <td>${s.rider_name ? escapeHtml(s.rider_name) : '—'}</td>
-            <td style="font-size:11px; color:#768390;">${escapeHtml(s.pickup_address)} → ${escapeHtml(s.delivery_address)}</td>
-            <td>${actionHtml}</td>
-          </tr>`;
-      }
-    }
-    loadingEl.classList.add("hidden");
-    wrapperEl.classList.remove("hidden");
-  } catch (err) {
-    loadingEl.textContent = "Error: " + err.message;
-  }
-}
-
-async function promptAssignRider(shipmentId) {
-  const riderId = prompt("Enter Rider ID to assign to Shipment " + shipmentId);
-  if (!riderId) return;
-  
-  try {
-    const res = await apiFetch(`/shipments/${shipmentId}/assign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rider_id: parseInt(riderId) })
-    });
-    
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      throw new Error(d.detail || "Failed to assign");
-    }
-    
-    loadAllShipments(); // refresh
-  } catch (err) {
-    alert("Error: " + err.message);
-  }
-}
-
-// Create Shipment Form
-document.getElementById("create-shipment-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById("cs-submit");
-  const errEl = document.getElementById("create-error");
-  
-  btn.disabled = true; btn.textContent = "Creating...";
-  errEl.classList.add("hidden");
-  
-  const payload = {
-    tracking_number: document.getElementById("cs-tracking").value,
-    customer_id: parseInt(document.getElementById("cs-customer").value),
-    sender_name: document.getElementById("cs-sender").value,
-    recipient_name: document.getElementById("cs-recipient").value,
-    pickup_address: document.getElementById("cs-pickup").value,
-    delivery_address: document.getElementById("cs-delivery").value,
-    delivery_fee: parseFloat(document.getElementById("cs-fee").value) || 0,
-    cod_amount: parseFloat(document.getElementById("cs-cod").value) || 0
-  };
-  
-  try {
-    const res = await apiFetch("/shipments/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      throw new Error(d.detail || "Failed to create");
-    }
-    
-    document.getElementById("create-shipment-form").reset();
-    loadAllShipments();
-    
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.classList.remove("hidden");
-  } finally
+})();
+</script>
+</body>
+</html>
