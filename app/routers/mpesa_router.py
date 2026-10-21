@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db, utcnow
 from ..models import Shipment, Payment
 from ..security import require_role
-from ..mpesa import mpesa_client
+from ..mpesa import get_mpesa_client
 from mpesakit.mpesa_express import TransactionType
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,13 @@ def initiate_mpesa_payment(
             "Shipment has no recipient phone — cannot send STK push",
         )
 
+    # Normalize phone to 254XXXXXXXXX (no +, no leading 0)
+    phone = shipment.recipient_phone.strip().replace(" ", "").replace("-", "")
+    if phone.startswith("+"):
+        phone = phone[1:]
+    if phone.startswith("0"):
+        phone = "254" + phone[1:]
+
     # Find the pending COD payment for this shipment
     pending = (
         db.query(Payment)
@@ -49,19 +56,20 @@ def initiate_mpesa_payment(
         )
 
     shortcode = int(os.getenv("MPESA_SHORTCODE", "174379"))
+    client = get_mpesa_client()
 
     try:
-        response = mpesa_client.stk_push(
+        response = client.stk_push(
             business_short_code=shortcode,
             passkey=os.getenv("MPESA_PASSKEY"),
             transaction_type=TransactionType.CUSTOMER_PAYBILL_ONLINE,
             amount=int(pending.amount),
-            party_a=shipment.recipient_phone,
+            party_a=phone,
             party_b=str(shortcode),
-            phone_number=shipment.recipient_phone,
+            phone_number=phone,
             callback_url=os.getenv("MPESA_CALLBACK_URL"),
-            account_reference=f"CMS-{shipment.tracking_number}",
-            transaction_desc=f"Delivery {shipment.tracking_number}",
+            account_reference=shipment.tracking_number[:12],  # Max 12 chars
+            transaction_desc="Delivery",                      # Max 13 chars
         )
     except Exception as exc:
         logger.exception("M-Pesa STK push failed")
