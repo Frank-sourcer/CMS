@@ -99,6 +99,7 @@ td{padding:10px 12px;border-bottom:1px solid #131820;white-space:nowrap}
 <div class="field"><label>Customer ID</label><input type="number" id="cs-customer" required></div>
 <div class="field"><label>Sender</label><input type="text" id="cs-sender" required></div>
 <div class="field"><label>Recipient</label><input type="text" id="cs-recipient" required></div>
+<div class="field"><label>Recipient Phone</label><input type="text" id="cs-recipient-phone" placeholder="+254..." required></div>
 <div class="field"><label>Pickup</label><input type="text" id="cs-pickup" required></div>
 <div class="field"><label>Delivery</label><input type="text" id="cs-delivery" required></div>
 <div class="field"><label>Fee (KES)</label><input type="number" id="cs-fee" value="0"></div>
@@ -203,9 +204,11 @@ async function loadAllShipments(){
     if(d.items.length===0){tb.innerHTML="<tr><td colspan=6 class=loading>No shipments</td></tr>"}
     else{
       for(const s of d.items){
-        let actions="";
-        if(s.status==="created")actions+="<button class='btn-ghost btn-sm' onclick='promptAssignRider("+s.id+")'>Assign</button> ";
+        let actions="<div style='display:flex;flex-direction:column;gap:4px'>";
+        if(s.status==="created")actions+="<button class='btn-ghost btn-sm' onclick='promptAssignRider("+s.id+")'>Assign</button>";
+        if(s.status==="out_for_delivery"||s.status==="delivered")actions+="<button class='btn-ghost btn-sm' onclick='promptMpesaPush("+s.id+","+JSON.stringify(s.recipient_phone||"")+")'>M-Pesa</button>";
         actions+="<button class='btn-ghost btn-sm' onclick='showPayments("+s.id+","+JSON.stringify(s.tracking_number)+")'>Payments</button>";
+        actions+="</div>";
         tb.innerHTML+="<tr><td>"+s.id+"</td><td>"+escapeHtml(s.tracking_number)+"</td><td><span class='status-badge status-"+s.status+"'>"+escapeHtml(s.status)+"</span></td><td>"+(s.rider_name?escapeHtml(s.rider_name):"-")+"</td><td style='font-size:11px;color:#768390'>"+escapeHtml(s.pickup_address)+" -> "+escapeHtml(s.delivery_address)+"</td><td>"+actions+"</td></tr>";
       }
     }
@@ -220,6 +223,22 @@ async function promptAssignRider(id){
     loadAllShipments();
   }catch(err){alert("Error: "+err.message)}
 }
+async function promptMpesaPush(shipmentId,defaultPhone){
+  const input=prompt("Send M-Pesa PIN prompt to which number?\n\nDefault: "+(defaultPhone||"none"),defaultPhone||"");
+  if(input===null)return;
+  const phone=input.trim()||defaultPhone||"";
+  if(!phone){alert("No phone number provided");return}
+  try{
+    const res=await apiFetch("/shipments/"+shipmentId+"/pay-mpesa",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({phone:phone})
+    });
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||"STK push failed");
+    alert("STK prompt sent to "+d.phone+"\n\n"+d.customer_message);
+  }catch(err){alert("Error: "+err.message)}
+}
 document.getElementById("create-shipment-form").addEventListener("submit",async(e)=>{
   e.preventDefault();
   const btn=document.getElementById("cs-submit");const er=document.getElementById("create-error");
@@ -229,6 +248,7 @@ document.getElementById("create-shipment-form").addEventListener("submit",async(
     customer_id:parseInt(document.getElementById("cs-customer").value),
     sender_name:document.getElementById("cs-sender").value,
     recipient_name:document.getElementById("cs-recipient").value,
+    recipient_phone:document.getElementById("cs-recipient-phone").value,
     pickup_address:document.getElementById("cs-pickup").value,
     delivery_address:document.getElementById("cs-delivery").value,
     delivery_fee:parseFloat(document.getElementById("cs-fee").value)||0,
@@ -274,6 +294,7 @@ async function showPayments(shipmentId,trackingNumber){
   try{
     const r=await apiFetch("/payments/shipment/"+shipmentId);const d=await r.json();
     if(d.length===0){document.getElementById("payments-content").innerHTML='<div class="loading">No payments recorded</div>';return}
+
     let html="<table><thead><tr><th>ID</th><th>Method</th><th>Amount</th><th>Status</th><th>Reference</th><th>Collected</th></tr></thead><tbody>";
     for(const p of d){
       html+="<tr><td>"+p.id+"</td><td>"+escapeHtml(p.method)+"</td><td>KES "+Number(p.amount).toLocaleString()+"</td><td><span class='status-badge status-"+p.status+"'>"+escapeHtml(p.status)+"</span></td><td>"+(p.reference?escapeHtml(p.reference):"-")+"</td><td style='font-size:11px;color:#768390'>"+(p.collected_at||"-")+"</td></tr>";

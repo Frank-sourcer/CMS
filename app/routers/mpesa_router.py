@@ -16,8 +16,9 @@ router = APIRouter(tags=["M-Pesa"])
 
 
 @router.post("/shipments/{shipment_id}/pay-mpesa")
-def initiate_mpesa_payment(
+async def initiate_mpesa_payment(
     shipment_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_role("admin", "dispatcher", "rider")),
 ):
@@ -25,20 +26,26 @@ def initiate_mpesa_payment(
     if shipment is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shipment not found")
 
-    if not shipment.recipient_phone:
+    # Optional phone override from JSON body: {"phone": "+254..."}
+    try:
+        body = await request.json()
+        request_phone = body.get("phone") if isinstance(body, dict) else None
+    except Exception:
+        request_phone = None
+
+    raw_phone = request_phone or shipment.recipient_phone
+    if not raw_phone:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            "Shipment has no recipient phone — cannot send STK push",
+            "No phone available — provide 'phone' in body or set shipment.recipient_phone",
         )
 
-    # Normalize phone to 254XXXXXXXXX (no +, no leading 0)
-    phone = shipment.recipient_phone.strip().replace(" ", "").replace("-", "")
+    phone = raw_phone.strip().replace(" ", "").replace("-", "")
     if phone.startswith("+"):
         phone = phone[1:]
     if phone.startswith("0"):
         phone = "254" + phone[1:]
 
-    # Find the pending COD payment for this shipment
     pending = (
         db.query(Payment)
         .filter(
@@ -48,7 +55,6 @@ def initiate_mpesa_payment(
         )
         .first()
     )
-
     if pending is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -68,8 +74,8 @@ def initiate_mpesa_payment(
             party_b=str(shortcode),
             phone_number=phone,
             callback_url=os.getenv("MPESA_CALLBACK_URL"),
-            account_reference=shipment.tracking_number[:12],  # Max 12 chars
-            transaction_desc="Delivery",                      # Max 13 chars
+            account_reference=shipment.tracking_number[:12],
+            transaction_desc="Delivery",
         )
     except Exception as exc:
         logger.exception("M-Pesa STK push failed")
@@ -78,7 +84,6 @@ def initiate_mpesa_payment(
             f"M-Pesa request failed: {exc}",
         )
 
-    # Extract CheckoutRequestID safely (it may be a Pydantic model, not a dict)
     checkout_id = getattr(response, "CheckoutRequestID", None)
     if checkout_id:
         pending.reference = checkout_id
@@ -86,6 +91,7 @@ def initiate_mpesa_payment(
 
     return {
         "message": "STK push sent",
+        "phone": phone,
         "checkout_request_id": checkout_id,
         "customer_message": getattr(response, "CustomerMessage", "Check your phone"),
     }
@@ -93,11 +99,9 @@ def initiate_mpesa_payment(
 
 @router.post("/mpesa/callback")
 async def mpesa_callback(request: Request, db: Session = Depends(get_db)):
-    """Safaricom calls this when the user enters their PIN (or cancels)."""
     try:
         payload = await request.json()
     except Exception:
-        # Sometimes Safaricom sends empty bodies on ping
         return {"ResultCode": 0, "ResultDesc": "Accepted"}
 
     logger.info("M-Pesa callback received: %s", payload)
@@ -108,22 +112,15 @@ async def mpesa_callback(request: Request, db: Session = Depends(get_db)):
         checkout_id = stk.get("CheckoutRequestID")
 
         if result_code == 0:
-            # Payment successful — extract amount and receipt
             items = stk.get("CallbackMetadata", {}).get("Item", [])
-            amount = next(
-                (i["Value"] for i in items if i["Name"] == "Amount"), None
-            )
             receipt = next(
-                (i["Value"] for i in items if i["Name"] == "MpesaReceiptNumber"),
-                None,
+                (i["Value"] for i in items if i["Name"] == "MpesaReceiptNumber"), None
             )
-
             payment = (
                 db.query(Payment)
                 .filter(Payment.reference == checkout_id)
                 .first()
             )
-
             if payment:
                 payment.status = "paid"
                 payment.reference = receipt or checkout_id
@@ -133,11 +130,9 @@ async def mpesa_callback(request: Request, db: Session = Depends(get_db)):
         else:
             logger.warning(
                 "STK push failed/cancelled: code=%s desc=%s",
-                result_code,
-                stk.get("ResultDesc"),
+                result_code, stk.get("ResultDesc"),
             )
     except (KeyError, TypeError) as exc:
         logger.exception("Could not parse M-Pesa callback: %s", exc)
 
-    # ALWAYS return 200, or Safaricom will retry repeatedly
     return {"ResultCode": 0, "ResultDesc": "Accepted"}
