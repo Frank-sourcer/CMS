@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from ..database import get_db
+from ..database import get_db, utcnow
 from ..models import NotificationLog
 from ..notification_schemas import (
     NotificationLogResponse,
@@ -99,3 +99,28 @@ def update_notification_status(
     db.commit()
     db.refresh(notification)
     return notification
+
+
+def deliver_notification(db, notif):
+    """Send a queued notification via SMS. Updates status and returns the row."""
+    from ..sms import send_sms
+    from ..database import utcnow
+
+    result = send_sms(notif.recipient, notif.message)
+
+    if result.get("ok"):
+        recipients = result.get("response", {}).get("SMSMessageData", {}).get("Recipients", [])
+        if recipients and recipients[0].get("status") == "Success":
+            notif.status = "sent"
+            notif.sent_at = utcnow()
+            notif.error = None
+        else:
+            notif.status = "failed"
+            notif.error = str(recipients)
+    else:
+        notif.status = "failed"
+        notif.error = result.get("error", "unknown")
+
+    db.commit()
+    db.refresh(notif)
+    return notif
